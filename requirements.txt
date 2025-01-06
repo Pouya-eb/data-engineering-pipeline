@@ -1,2 +1,1 @@
 apache-airflow-providers-mongo
-apache-airflow-providers-clickhouse
