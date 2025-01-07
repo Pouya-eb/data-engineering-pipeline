@@ -615,6 +615,12 @@ services:
       ME_CONFIG_BASICAUTH_PASSWORD: ${ME_CONFIG_BASICAUTH_PASSWORD}
     env_file:
       - .env
+  
+  clickhouse:
+    image: clickhouse:24.10.2
+    ports:
+      - 8123:8123
+      - 9000:9000
 
 volumes:
   postgres-db-volume:
