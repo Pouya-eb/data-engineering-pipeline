@@ -589,7 +589,7 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
-    mongo:
+  mongo:
     image: mongo:4.4.6
     container_name: mongo
     ports:
