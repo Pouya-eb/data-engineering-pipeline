@@ -98,6 +98,24 @@ services:
       start_period: 5s
     restart: always
 
+  secondary-postgres:
+    image: postgres:13
+    container_name: secondary-postgres
+    environment:
+      POSTGRES_USER: csv_user
+      POSTGRES_PASSWORD: csv_password
+      POSTGRES_DB: csv_database
+    volumes:
+      - ./data:/var/lib/postgresql/csv_data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "csv_user"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+
   redis:
     # Redis is limited to 7.2-bookworm due to licencing change
     # https://redis.io/blog/redis-adopts-dual-source-available-licensing/
