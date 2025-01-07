@@ -98,15 +98,15 @@ services:
       start_period: 5s
     restart: always
 
-  secondary-postgres:
+  postgres-db-csv:
     image: postgres:13
-    container_name: secondary-postgres
+    container_name: data-engineering-pipeline-postgres-db-csv
     environment:
       POSTGRES_USER: ${CSV_POSTGRES_USER}
       POSTGRES_PASSWORD: ${CSV_POSTGRES_PASSWORD}
       POSTGRES_DB: ${CSV_POSTGRES_DB}
     volumes:
-      - ./data:/var/lib/postgresql/postgres_data_csv
+      - ./data:/var/lib/postgresql/postgres-data-csv
     ports:
       - "5433:5432"
     healthcheck:
