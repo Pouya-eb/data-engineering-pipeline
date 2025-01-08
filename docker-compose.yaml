@@ -296,6 +296,7 @@ services:
       POSTGRES_DB: ${CSV_POSTGRES_DB}
     volumes:
       - /home/user/postgres-data:/var/lib/postgresql/postgres-data-csv
+      - /home/user/postgres-backup:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
@@ -344,4 +345,5 @@ services:
 volumes:
   postgres-db-volume:
   postgres-data:
+  postgres-bakcup:
   mongo-data:
