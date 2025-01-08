@@ -297,7 +297,7 @@ services:
     volumes:
       - /home/user/postgres-data:/var/lib/postgresql/postgres-data-csv
     ports:
-      - "5433:5432"
+      - "5432:5432"
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${CSV_POSTGRES_USER}"]
       interval: 10s
