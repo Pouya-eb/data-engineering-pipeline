@@ -126,6 +126,8 @@ services:
       retries: 5
       start_period: 30s
     restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
@@ -141,6 +143,8 @@ services:
       retries: 5
       start_period: 30s
     restart: always
+    volumes: 
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:
@@ -163,6 +167,8 @@ services:
       # Required to handle warm shutdown of the celery workers properly
       # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
       DUMB_INIT_SETSID: "0"
+    volumes: 
+      - /var/run/docker.sock:/var/run/docker.sock 
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
@@ -183,6 +189,8 @@ services:
       retries: 5
       start_period: 30s
     restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       <<: *airflow-common-depends-on
       airflow-init:

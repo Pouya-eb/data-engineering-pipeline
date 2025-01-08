@@ -24,22 +24,16 @@ with DAG(
     restore_mongo = BashOperator(
         task_id='mongorestore_task',
         bash_command=(
-            'mongorestore '
-            '--username {{ params.username }} '
-            '--password {{ params.password }} '
-            '--authenticationDatabase {{ params.auth_db }} '
-            '--db {{ params.db_name }} '
-            '--collection {{ params.collection_name }} '
-            '{{ params.backup_file_path }}'
+            'mongorestore --username admin --password password --authenticationDatabase admin --db mydb --collection videos /data/db/videos.bson'
         ),
-        params={
-            'username': 'admin',
-            'password': 'password',
-            'auth_db': 'admin',
-            'db_name': 'videos-db',
-            'collection_name': 'videos',
-            'backup_file_path': '/data/db/videos.bson',
-        },
+        #params={
+        #    'username': 'admin',
+        #    'password': 'password',
+        #    'auth_db': 'admin',
+        #    'db_name': 'mydb',
+        #    'collection_name': 'videos',
+        #    'backup_file_path': '/data/db/videos.bson',
+        #},
     )
 
-    restore_mongo
+restore_mongo

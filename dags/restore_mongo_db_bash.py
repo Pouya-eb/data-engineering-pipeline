@@ -23,14 +23,12 @@ with DAG(
     restore_mongo = BashOperator(
         task_id='mongorestore_task',
         bash_command=(
-            'docker exec mongo mongorestore '
-            '--username admin'
-            '--password password'
-            '--authenticationDatabase admin'
-            '--db youtube-videos-db'
-            '--collection videos'
-            '/data/db/videos.bson'
-        ),
+            #'docker exec -i mongo sh -c mongorestore --username admin --password password --authenticationDatabase admin --db mydb --collection videos /data/db/videos.bson'
+            'docker exec -i mongo sh -c "mongorestore --username admin --password password --authenticationDatabase admin --db mydb --collection videos /data/db/videos.bson"'
+
+             #docker exec -i <mongodb container> sh -c 'mongorestore --authenticationDatabase admin -u <user> -p <password> --db <database> --archive' < db.dump
+        
+        )
     )
 
-    restore_mongo
+restore_mongo
