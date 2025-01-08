@@ -14,8 +14,11 @@ def get_conn():
 def creating_table():
     connection = get_conn()
     cursor = connection.cursor()
+
     cursor.execute(
         """
+        DROP TABLE IF EXISTS channels;
+        
         CREATE TABLE IF NOT EXISTS channels (
             _id                     TEXT,
             username                TEXT,
@@ -23,7 +26,7 @@ def creating_table():
             avatar_thumbnail        TEXT,
             is_official             BOOLEAN,
             name                    TEXT,
-            bio_links               TEXT[],
+            bio_links               TEXT,
             total_video_visit       BIGINT,
             video_count             INTEGER,
             start_date              TIMESTAMP,
@@ -47,69 +50,15 @@ def inserting_data():
     cursor = connection.cursor()
 
     cursor.execute(
-        """
-        CREATE TEMP TABLE temp_channels (
-            _id                     TEXT,
-            username                TEXT,
-            userid                  TEXT,
-            avatar_thumbnail        TEXT,
-            is_official             TEXT,
-            name                    TEXT,
-            bio_links               TEXT,
-            total_video_visit       TEXT,
-            video_count             TEXT,
-            start_date              TEXT,
-            start_date_timestamp    TEXT,
-            followers_count         TEXT,
-            following_count         TEXT,
-            country                 TEXT,
-            platform                TEXT,
-            created_at              TEXT,
-            update_count            TEXT
-        );
-        """
-    )
-
-    cursor.execute(
         f"""
-        COPY temp_channels
+        COPY channels
         FROM '{DATA_PATH}'
         DELIMITER ','
         CSV HEADER;
         """
     )
 
-    cursor.execute(
-        """
-        INSERT INTO channels (
-            _id, username, userid, avatar_thumbnail, is_official, name, bio_links,
-            total_video_visit, video_count, start_date, start_date_timestamp,
-            followers_count, following_count, country, platform, created_at, update_count
-        )
-        SELECT
-            _id,
-            username,
-            userid,
-            avatar_thumbnail,
-            is_official::BOOLEAN,
-            name,
-            string_to_array(regexp_replace(bio_links, '[\[\]"]', '', 'g'), ',')::TEXT[],
-            total_video_visit::BIGINT,
-            video_count::INTEGER,
-            TO_TIMESTAMP(start_date, 'MM/DD/YYYY HH24:MI'),
-            start_date_timestamp::BIGINT,
-            followers_count::INTEGER,
-            following_count::INTEGER,
-            country,
-            platform,
-            TO_TIMESTAMP(created_at, 'MM/DD/YYYY HH24:MI'),
-            update_count::INTEGER
-        FROM temp_channels;
-        """
-    )
-
     connection.commit()
-
     cursor.close()
     connection.close()
 
