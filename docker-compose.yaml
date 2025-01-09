@@ -340,8 +340,10 @@ services:
       - 8123:8123
       - 9000:9000
     volumes:
-      - ./ch_data/:/var/lib/clickhouse/
-      - ./ch_logs/:/var/log/clickhouse-server/
+      - ./clickhouse/data/:/var/lib/clickhouse/
+      - ./clickhouse/logs/:/var/log/clickhouse-server/
+      # - ./clickhouse/config/:/etc/clickhouse-server/config.d/
+      - ./clickhouse/users/:/etc/clickhouse-server/users.d/
 
 volumes:
   postgres-db-volume:

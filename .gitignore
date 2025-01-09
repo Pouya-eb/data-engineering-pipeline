@@ -1,3 +1,5 @@
 .Ds_Store
 .env
 logs
+clickhouse/data/
+clickhouse/logs/
