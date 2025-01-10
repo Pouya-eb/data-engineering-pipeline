@@ -35,6 +35,26 @@ def creating_table_clickhouse():
     )
 
 
+def creating_table_clickhouse():
+    hook = get_conn_clickhouse()
+    hook.execute("CREATE DATABASE IF NOT EXISTS bronze;")
+    hook.execute("DROP TABLE IF EXISTS bronze.videos;")
+    hook.execute(
+        """
+        CREATE TABLE IF NOT EXISTS bronze.videos (
+            
+            _id                     String,
+            created_at              TIMESTAMP,
+            expire_at               TIMESTAMP,
+            is_produce_to_kafka     BOOLEAN,
+            object                  String,
+            update_count            Integer
+        ) ENGINE = MergeTree()
+          ORDER BY _id;
+        """
+    )
+
+
 def importing_data_to_clickhouse():
 
     client = get_conn_mongo()
@@ -55,11 +75,19 @@ def importing_data_to_clickhouse():
 
         last_id = batch[-1]["_id"]
 
-        for doc in batch:
-            if "_id" in doc:
-                doc["_id"] = str(doc["_id"])
+        rows = [
+            (
+                str(doc["_id"]),
+                doc["created_at"],
+                doc["expire_at"],
+                doc["is_produce_to_kafka"],
+                str(doc["object"]),
+                doc["update_count"],
+            )
+            for doc in batch
+        ]
 
-        hook.execute("INSERT INTO bronze.videos VALUSE", batch)
+        hook.execute("INSERT INTO bronze.videos VALUES", rows)
 
 
 default_args = {
