@@ -60,6 +60,8 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
     AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
     AIRFLOW_CONN_MY_POSTGRES_DATABASE: ${AIRFLOW_CONN_MY_POSTGRES_DATABASE}
+    AIRFLOW_CONN_MY_MONGO_DATABASE: ${AIRFLOW_CONN_MY_MONGO_DATABASE}
+    AIRFLOW_CONN_MY_CLICKHOUSE_DATABASE: ${AIRFLOW_CONN_MY_CLICKHOUSE_DATABASE}
     AIRFLOW_VAR_MY_POSTGRES_DATA_PATH: ${AIRFLOW_VAR_MY_POSTGRES_DATA_PATH}
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
