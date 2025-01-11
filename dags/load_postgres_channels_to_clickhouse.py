@@ -15,6 +15,7 @@ def get_clickhouse_hook():
 def create_clickhouse_table():
     hook = get_clickhouse_hook()
     hook.execute("CREATE DATABASE IF NOT EXISTS bronze;")
+    hook.execute("DROP TABLE IF EXISTS bronze.channels;")
     hook.execute("""
         CREATE TABLE IF NOT EXISTS bronze.channels
         (
