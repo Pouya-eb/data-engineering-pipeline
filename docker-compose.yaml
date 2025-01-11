@@ -63,6 +63,10 @@ x-airflow-common: &airflow-common
     AIRFLOW_CONN_MY_MONGO_DATABASE: ${AIRFLOW_CONN_MY_MONGO_DATABASE}
     AIRFLOW_CONN_MY_CLICKHOUSE_DATABASE: ${AIRFLOW_CONN_MY_CLICKHOUSE_DATABASE}
     AIRFLOW_VAR_MY_POSTGRES_DATA_PATH: ${AIRFLOW_VAR_MY_POSTGRES_DATA_PATH}
+    AIRFLOW_VAR_POSTGRES_CSV_HOST: ${CSV_POSTGRES_HOST}
+    AIRFLOW_VAR_POSTGRES_CSV_DB: ${CSV_POSTGRES_DB}
+    AIRFLOW_VAR_POSTGRES_CSV_USER: ${CSV_POSTGRES_USER}
+    AIRFLOW_VAR_POSTGRES_CSV_PASSWORD: ${CSV_POSTGRES_PASSWORD}
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
     # See https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/check-health.html#scheduler-health-check-server
