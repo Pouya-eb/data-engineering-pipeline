@@ -16,34 +16,34 @@ def get_conn_clickhouse():
 
 
 def extracting_object(row):
-    obj = row["object"]
+    obj = row.get("object", {})
     return (
-        row["_id"],
-        row["created_at"],
-        row["expire_at"],
-        row["is_produce_to_kafka"],
-        obj["platform"],
-        obj["id"],
-        obj["owner_username"],
-        obj["owner_id"],
-        obj["title"],
-        obj["tags"],
-        obj["uid"],
-        obj["visit_count"],
-        obj["owner_name"],
-        obj["poster"],
-        obj["owner_avatar"],
-        obj["duration"],
-        obj["posted_date"],
-        obj["posted_timestamp"],
-        obj["sdate_rss"],
-        obj["sdate_rss_tp"],
-        obj["comments"],
-        obj["frame"],
-        obj["like_count"],
-        obj["description"],
-        obj["is_deleted"],
-        row["update_count"],
+        row.get("_id"),
+        row.get("created_at"),
+        row.get("expire_at"),
+        row.get("is_produce_to_kafka"),
+        obj.get("platform"),
+        obj.get("id"),
+        obj.get("owner_username"),
+        obj.get("owner_id"),
+        obj.get("title"),
+        obj.get("tags"),
+        obj.get("uid"),
+        obj.get("visit_count"),
+        obj.get("owner_name"),
+        obj.get("poster"),
+        obj.get("owner_avatar"),
+        obj.get("duration"),
+        datetime.strptime(obj.get("posted_date"), "%Y-%m-%d %H:%M:%S"),
+        obj.get("posted_timestamp"),
+        datetime.strptime(obj.get("sdate_rss"), "%Y-%m-%d %H:%M:%S"),
+        obj.get("sdate_rss_tp"),
+        obj.get("comments"),
+        obj.get("frame"),
+        obj.get("like_count"),
+        obj.get("description"),
+        obj.get("is_deleted"),
+        row.get("update_count"),
     )
 
 
@@ -56,51 +56,32 @@ def creating_table_clickhouse():
         CREATE TABLE IF NOT EXISTS bronze.videos (
             
             _id                     String,
-            created_at              TIMESTAMP,
-            expire_at               TIMESTAMP,
+            created_at              DATETIME,
+            expire_at               DATETIME,
             is_produce_to_kafka     BOOLEAN,
-            platform                String,
-            id                      String,
-            owner_username          String,
-            owner_id                String,
-            title                   String,
-            tags                    String,
-            uid                     String,
-            visit_count             Integer,
-            owner_name              String,
-            poster                  String,
-            owner_avatar            String,
-            duration                Integer,
-            posted_date             TIMESTAMP,
-            posted_timestamp        INTEGER,
-            sdate_rss               TIMESTAMP,
-            sdate_rss_tp            INTEGER,
-            comments                String,
-            frame                   String,
-            like_count              INTEGER,
-            description             String,
-            is_deleted              BOOLEAN,
-            update_count            Integer
-        ) ENGINE = MergeTree()
-          ORDER BY _id;
-        """
-    )
-
-
-def creating_table_clickhouse():
-    hook = get_conn_clickhouse()
-    hook.execute("CREATE DATABASE IF NOT EXISTS bronze;")
-    hook.execute("DROP TABLE IF EXISTS bronze.videos;")
-    hook.execute(
-        """
-        CREATE TABLE IF NOT EXISTS bronze.videos (
+            platform                Nullable(String),
+            id                      Nullable(INTEGER),
+            owner_username          Nullable(String),
+            owner_id                Nullable(String),
+            title                   Nullable(String),
+            tags                    Nullable(String),
+            uid                     Nullable(String),
+            visit_count             Nullable(INTEGER),
+            owner_name              Nullable(String),
+            poster                  Nullable(String),
+            owner_avatar            Nullable(String),
+            duration                Nullable(INTEGER),
+            posted_date             Nullable(DATETIME),
+            posted_timestamp        Nullable(INTEGER),
+            sdate_rss               Nullable(DATETIME),
+            sdate_rss_tp            Nullable(INTEGER),
+            comments                Nullable(String),
+            frame                   Nullable(String),
+            like_count              Nullable(INTEGER),
+            description             Nullable(String),
+            is_deleted              Nullable(BOOLEAN),
+            update_count            INTEGER
             
-            _id                     String,
-            created_at              TIMESTAMP,
-            expire_at               TIMESTAMP,
-            is_produce_to_kafka     BOOLEAN,
-            object                  String,
-            update_count            Integer
         ) ENGINE = MergeTree()
           ORDER BY _id;
         """
@@ -126,7 +107,6 @@ def importing_data_to_clickhouse():
             break
 
         last_id = batch[-1]["_id"]
-
         rows = [extracting_object(row) for row in batch]
 
         hook.execute("INSERT INTO bronze.videos VALUES", rows)
