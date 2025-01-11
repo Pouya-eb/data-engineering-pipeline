@@ -15,6 +15,38 @@ def get_conn_clickhouse():
     return ClickHouseHook(clickhouse_conn_id="my_clickhouse_database")
 
 
+def extracting_object(row):
+    obj = row["object"]
+    return (
+        row["_id"],
+        row["created_at"],
+        row["expire_at"],
+        row["is_produce_to_kafka"],
+        obj["platform"],
+        obj["id"],
+        obj["owner_username"],
+        obj["owner_id"],
+        obj["title"],
+        obj["tags"],
+        obj["uid"],
+        obj["visit_count"],
+        obj["owner_name"],
+        obj["poster"],
+        obj["owner_avatar"],
+        obj["duration"],
+        obj["posted_date"],
+        obj["posted_timestamp"],
+        obj["sdate_rss"],
+        obj["sdate_rss_tp"],
+        obj["comments"],
+        obj["frame"],
+        obj["like_count"],
+        obj["description"],
+        obj["is_deleted"],
+        row["update_count"],
+    )
+
+
 def creating_table_clickhouse():
     hook = get_conn_clickhouse()
     hook.execute("CREATE DATABASE IF NOT EXISTS bronze;")
@@ -27,7 +59,27 @@ def creating_table_clickhouse():
             created_at              TIMESTAMP,
             expire_at               TIMESTAMP,
             is_produce_to_kafka     BOOLEAN,
-            object                  String,
+            platform                String,
+            id                      String,
+            owner_username          String,
+            owner_id                String,
+            title                   String,
+            tags                    String,
+            uid                     String,
+            visit_count             Integer,
+            owner_name              String,
+            poster                  String,
+            owner_avatar            String,
+            duration                Integer,
+            posted_date             TIMESTAMP,
+            posted_timestamp        INTEGER,
+            sdate_rss               TIMESTAMP,
+            sdate_rss_tp            INTEGER,
+            comments                String,
+            frame                   String,
+            like_count              INTEGER,
+            description             String,
+            is_deleted              BOOLEAN,
             update_count            Integer
         ) ENGINE = MergeTree()
           ORDER BY _id;
@@ -75,17 +127,7 @@ def importing_data_to_clickhouse():
 
         last_id = batch[-1]["_id"]
 
-        rows = [
-            (
-                str(doc["_id"]),
-                doc["created_at"],
-                doc["expire_at"],
-                doc["is_produce_to_kafka"],
-                str(doc["object"]),
-                doc["update_count"],
-            )
-            for doc in batch
-        ]
+        rows = [extracting_object(row) for row in batch]
 
         hook.execute("INSERT INTO bronze.videos VALUES", rows)
 
@@ -103,7 +145,7 @@ with DAG(
     dag_id="mongo-to-clickhouse",
     default_args=default_args,
     description="importing data from mongo into clickhouse (bronze_layer)",
-    schedule="@monthly",
+    schedule="@once",
     catchup=False,
     tags=["mongo", "clickhouse"],
 ) as dag:
