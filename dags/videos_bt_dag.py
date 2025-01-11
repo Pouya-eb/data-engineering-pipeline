@@ -25,7 +25,7 @@ default_args = {
 def videos_bt():
     from pprint import pprint
 
-    clickhouse_engine = ClickHouseHook(clickhouse_conn_id='clickhouse_http')    
+    clickhouse_engine = ClickHouseHook(clickhouse_conn_id='clickhouse_tcp')    
 
 
     @task
