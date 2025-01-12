@@ -15,7 +15,6 @@ def get_clickhouse_hook():
 def create_clickhouse_table():
     hook = get_clickhouse_hook()
     hook.execute("CREATE DATABASE IF NOT EXISTS bronze;")
-    hook.execute("DROP TABLE IF EXISTS bronze.channels;")
     hook.execute("""
         CREATE TABLE IF NOT EXISTS bronze.channels
         (
@@ -41,12 +40,13 @@ def create_clickhouse_table():
     """)
 
 
-def load_data_from_postgres():
+def incremental_load_data_from_postgres():
     hook = get_clickhouse_hook()
     hook.execute(f"""
         INSERT INTO bronze.channels
         SELECT *
-        FROM postgresql('{Variable.get('postgres_csv_host')}', '{Variable.get("postgres_csv_db")}', 'channels', '{Variable.get("postgres_csv_user")}', '{Variable.get("postgres_csv_password")}');
+        FROM postgresql('{Variable.get('postgres_csv_host')}', '{Variable.get("postgres_csv_db")}', 'channels', '{Variable.get("postgres_csv_user")}', '{Variable.get("postgres_csv_password")}')
+        WHERE start_date > (SELECT MAX(start_date) FROM bronze.channels);
     """)
 
 
@@ -64,7 +64,7 @@ default_args = {
 with DAG(
     'load_postgres_channels_to_clickhouse',
     'Load channels data in Postgres into ClickHouse',
-    '@once',
+    '@daily',
     start_date=pendulum.datetime(2025, 1, 11, tz="Asia/Tehran"),
     tags=['clickhouse', 'postgres', 'bronze'],
 ):
@@ -77,8 +77,8 @@ with DAG(
     )
 
     load_channels_data = PythonOperator(
-        task_id='load_postgres_channels_to_clickhouse',
-        python_callable=load_data_from_postgres,
+        task_id='incremental_load_postgres_channels_to_clickhouse',
+        python_callable=incremental_load_data_from_postgres,
     )
 
     START >> create_table >> load_channels_data >> END
