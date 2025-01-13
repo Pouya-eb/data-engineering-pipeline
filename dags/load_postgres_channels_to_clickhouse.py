@@ -46,7 +46,7 @@ def incremental_load_data_from_postgres():
         INSERT INTO bronze.channels
         SELECT *
         FROM postgresql('{Variable.get('postgres_csv_host')}', '{Variable.get("postgres_csv_db")}', 'channels', '{Variable.get("postgres_csv_user")}', '{Variable.get("postgres_csv_password")}')
-        WHERE start_date > (SELECT MAX(start_date) FROM bronze.channels);
+        WHERE start_date > (SELECT toString(MAX(start_date)) FROM bronze.channels);
     """)
 
 
