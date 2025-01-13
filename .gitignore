@@ -3,3 +3,4 @@
 logs
 clickhouse/data/
 clickhouse/logs/
+dags/__pycache__
