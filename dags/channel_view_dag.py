@@ -6,7 +6,7 @@ from airflow_clickhouse_plugin.hooks.clickhouse import ClickHouseHook
 
 
 default_args = {
-    "owner": "Mkz-Majid",
+    "owner": "Mkz",
     "depends_on_past": False,
     "start_date": datetime(2025, 1, 1),
     "retries": 1,
@@ -15,12 +15,12 @@ default_args = {
 
 
 @dag(
-    dag_id='videos_bt',
-    description='a dag to transform data and create videos big table',
+    dag_id='channelviewRep',
+    description='a dag to create channel_growth_report',
     schedule='@once',
     default_args=default_args,
     catchup=False,
-    tags=['clickhouse', 'big_table']        
+    tags=['clickhouse', 'channel-Rep']        
 )
 def videos_bt():
     from pprint import pprint
