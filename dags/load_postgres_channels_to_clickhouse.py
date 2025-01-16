@@ -3,11 +3,16 @@ from airflow.models import Variable
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow_clickhouse_plugin.hooks.clickhouse import ClickHouseHook
+from airflow.providers.postgres.hooks.postgres import PostgresHook
 from pendulum import datetime, duration
 
 
 def get_clickhouse_hook():
     return ClickHouseHook(clickhouse_conn_id="my_clickhouse_database")
+
+
+def get_postgres_hook():
+    return PostgresHook(postgres_conn_id="my_postgres_database")
 
 
 def create_clickhouse_table():
@@ -47,19 +52,43 @@ def incremental_load_data_from_postgres():
         WHERE start_date > (SELECT toString(MAX(start_date)) FROM bronze.channels);
     """)
 
+
 def data_validity_check():
-    hook = get_clickhouse_hook()
-    postgres_count = hook.execute(f"""
+    postgres_hook = get_postgres_hook()
+    ch_hook = get_clickhouse_hook()
+
+    # Row Count
+    postgres_row_count = postgres_hook.get_records("""
         SELECT COUNT(*)
-        FROM postgresql('{Variable.get('postgres_host')}', '{Variable.get("postgres_csv_db")}', 'channels', '{Variable.get("postgres_user")}', '{Variable.get("postgres_password")}');
-    """)
-    clickhouse_count = hook.execute(f"""
+        FROM channels
+    """)[0][0]
+    clickhouse_row_count = ch_hook.execute(f"""
         SELECT COUNT(*)
         FROM bronze.channels3;
-    """)
+    """)[0][0]
 
-    if postgres_count[0][0] != clickhouse_count[0][0]:
-        raise ValueError(f"Postgres count: {postgres_count[0][0]} - ClickHouse count: {clickhouse_count[0][0]}")
+    print(postgres_row_count)
+    print(clickhouse_row_count)
+
+    if postgres_row_count != clickhouse_row_count:
+        raise ValueError(f"Postgres row count: {postgres_row_count} - ClickHouse row count: {clickhouse_row_count}")
+
+    # Column Count
+    postgres_column_count = postgres_hook.get_records("""
+        SELECT COUNT(*)
+        FROM information_schema.columns
+        WHERE table_name = 'channels';
+    """)[0][0]
+    clickhouse_column_count = ch_hook.execute(f"""
+        SELECT COUNT(*)
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE table_name = 'channels';
+    """)[0][0]
+    print(postgres_column_count)
+    print(clickhouse_column_count)
+
+    if postgres_column_count != clickhouse_column_count:
+        raise ValueError(f"Postgres column count: {postgres_column_count} - ClickHouse column count: {clickhouse_column_count}")
 
 
 default_args = {
