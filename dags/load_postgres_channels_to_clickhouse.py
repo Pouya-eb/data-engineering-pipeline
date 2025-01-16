@@ -1,15 +1,18 @@
-from datetime import timedelta
-
-import pendulum
 from airflow import DAG
 from airflow.models import Variable
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow_clickhouse_plugin.hooks.clickhouse import ClickHouseHook
+from airflow.providers.postgres.hooks.postgres import PostgresHook
+from pendulum import datetime, duration
 
 
 def get_clickhouse_hook():
     return ClickHouseHook(clickhouse_conn_id="my_clickhouse_database")
+
+
+def get_postgres_hook():
+    return PostgresHook(postgres_conn_id="my_postgres_database")
 
 
 def create_clickhouse_table():
@@ -50,6 +53,45 @@ def incremental_load_data_from_postgres():
     """)
 
 
+def data_validity_check():
+    postgres_hook = get_postgres_hook()
+    ch_hook = get_clickhouse_hook()
+
+    # Row Count
+    postgres_row_count = postgres_hook.get_records("""
+        SELECT COUNT(*)
+        FROM channels
+    """)[0][0]
+    clickhouse_row_count = ch_hook.execute("""
+        SELECT COUNT(*)
+        FROM bronze.channels;
+    """)[0][0]
+
+    print(f'Postgres row count: {postgres_row_count}')
+    print(f'ClickHouse row count: {clickhouse_row_count}')
+
+    if postgres_row_count != clickhouse_row_count:
+        raise ValueError(f"Postgres row count: {postgres_row_count} - ClickHouse row count: {clickhouse_row_count}")
+
+    # Column Count
+    postgres_column_count = postgres_hook.get_records("""
+        SELECT COUNT(*)
+        FROM information_schema.columns
+        WHERE table_name = 'channels';
+    """)[0][0]
+    clickhouse_column_count = ch_hook.execute("""
+        SELECT COUNT(*)
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE table_name = 'channels';
+    """)[0][0]
+
+    print(f'Postgres column count: {postgres_column_count}')
+    print(f'ClickHouse column count: {clickhouse_column_count}')
+
+    if postgres_column_count != clickhouse_column_count:
+        raise ValueError(f"Postgres column count: {postgres_column_count} - ClickHouse column count: {clickhouse_column_count}")
+
+
 default_args = {
     'owner': 'Kavian',
     'depends_on_past': False,
@@ -57,7 +99,7 @@ default_args = {
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 3,
-    'retry_delay': timedelta(minutes=5),
+    'retry_delay': duration(minutes=1),
     'catchup': False,
 }
 
@@ -65,7 +107,7 @@ with DAG(
     'load_postgres_channels_to_clickhouse',
     'Load channels data in Postgres into ClickHouse',
     '@daily',
-    start_date=pendulum.datetime(2025, 1, 11, tz="Asia/Tehran"),
+    start_date=datetime(2025, 1, 11, tz="Asia/Tehran"),
     tags=['clickhouse', 'postgres', 'bronze'],
 ):
     START = EmptyOperator(task_id='START')
@@ -74,11 +116,22 @@ with DAG(
     create_table = PythonOperator(
         task_id='create_clickhouse_channels_table',
         python_callable=create_clickhouse_table,
+        retries=3,
+        retry_delay=duration(minutes=1),
     )
 
     load_channels_data = PythonOperator(
         task_id='incremental_load_postgres_channels_to_clickhouse',
         python_callable=incremental_load_data_from_postgres,
+        retries=3,
+        retry_delay=duration(minutes=1),
     )
 
-    START >> create_table >> load_channels_data >> END
+    check_data_validity = PythonOperator(
+        task_id='data_validity_check',
+        python_callable=data_validity_check,
+        retries=3,
+        retry_delay=duration(minutes=1),
+    )
+
+    START >> create_table >> load_channels_data >> check_data_validity >> END
