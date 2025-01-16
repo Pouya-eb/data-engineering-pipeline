@@ -62,13 +62,13 @@ def data_validity_check():
         SELECT COUNT(*)
         FROM channels
     """)[0][0]
-    clickhouse_row_count = ch_hook.execute(f"""
+    clickhouse_row_count = ch_hook.execute("""
         SELECT COUNT(*)
         FROM bronze.channels;
     """)[0][0]
 
-    print(postgres_row_count)
-    print(clickhouse_row_count)
+    print(f'Postgres row count: {postgres_row_count}')
+    print(f'ClickHouse row count: {clickhouse_row_count}')
 
     if postgres_row_count != clickhouse_row_count:
         raise ValueError(f"Postgres row count: {postgres_row_count} - ClickHouse row count: {clickhouse_row_count}")
@@ -79,13 +79,14 @@ def data_validity_check():
         FROM information_schema.columns
         WHERE table_name = 'channels';
     """)[0][0]
-    clickhouse_column_count = ch_hook.execute(f"""
+    clickhouse_column_count = ch_hook.execute("""
         SELECT COUNT(*)
         FROM INFORMATION_SCHEMA.COLUMNS
         WHERE table_name = 'channels';
     """)[0][0]
-    print(postgres_column_count)
-    print(clickhouse_column_count)
+
+    print(f'Postgres column count: {postgres_column_count}')
+    print(f'ClickHouse column count: {clickhouse_column_count}')
 
     if postgres_column_count != clickhouse_column_count:
         raise ValueError(f"Postgres column count: {postgres_column_count} - ClickHouse column count: {clickhouse_column_count}")
