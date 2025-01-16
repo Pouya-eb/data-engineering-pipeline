@@ -40,7 +40,7 @@ def creating_materialized_view_clickhouse():
             avgState(CAST(video_visit_count AS UInt64))          AS video_visits
         FROM silver.Videos_channels_OBT
         WHERE channel_country IS NOT NULL
-            AND channel_coountry != ''
+            AND channel_country != ''
         GROUP BY channel_country;
         """
     )
@@ -50,7 +50,7 @@ def initializeing_table():
     hook = get_conn_clickhouse()
     hook.execute(
         """
-        INSERT INTO geo_distribution 
+        INSERT INTO gold.geo_distribution 
             (country, channel_counts, follower_counts, video_visits)
         SELECT
             channel_country,
@@ -59,7 +59,7 @@ def initializeing_table():
             avgState(CAST(video_visit_count AS UInt64))
         FROM silver.Videos_channels_OBT
         WHERE channel_country IS NOT NULL
-            AND channel_coountry != ''
+            AND channel_country != ''
         GROUP BY channel_country;        
         """
     )
