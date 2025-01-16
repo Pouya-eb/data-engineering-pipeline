@@ -64,7 +64,7 @@ def data_validity_check():
     """)[0][0]
     clickhouse_row_count = ch_hook.execute(f"""
         SELECT COUNT(*)
-        FROM bronze.channels3;
+        FROM bronze.channels;
     """)[0][0]
 
     print(postgres_row_count)
