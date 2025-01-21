@@ -15,7 +15,7 @@ default_args = {
 
 
 @dag(
-    dag_id='topperformingchannels',
+    dag_id='top_performing_channels',
     description='a dag to create top performing channels report',
     schedule='@once',
     default_args=default_args,
