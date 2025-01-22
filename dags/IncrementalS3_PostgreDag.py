@@ -16,9 +16,9 @@ default_args = {
 
 # Define the DAG using the @dag decorator
 @dag(
-    dag_id='channelviewRep',
-    description='A DAG to create channel_growth_report',
-    schedule='@once',  # Fixed incorrect key 'schedule_interval' to 'schedule'
+    dag_id='channelS3Incremental',
+    description='Incremental Load on Postgre',
+    schedule='@once',  
     default_args=default_args,
     catchup=False,
     tags=['clickhouse', 'channel-Rep']
