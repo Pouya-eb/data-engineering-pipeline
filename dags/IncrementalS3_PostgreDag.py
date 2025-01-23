@@ -18,13 +18,12 @@ default_args = {
 @dag(
     dag_id='channelS3Incremental',
     description='Incremental Load on Postgre',
-    schedule='@once',  
+    schedule_interval='0 0 * * *',  
     default_args=default_args,
     catchup=False,
-    tags=['clickhouse', 'channel-Rep']
+    tags=['Incremental', 'S3-channels']
 )
 def channel_S3():
-    # Imported necessary modules inside the DAG function to prevent import-related issues
     from pprint import pprint
     import pandas as pd
     import psycopg2
