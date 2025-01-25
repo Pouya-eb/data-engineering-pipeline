@@ -10,7 +10,6 @@ mongo_connection = BaseHook.get_connection("my_mongo_database")
 mongo_username = mongo_connection.login
 mongo_password = mongo_connection.password
 
-
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
