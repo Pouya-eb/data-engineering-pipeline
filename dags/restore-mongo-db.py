@@ -5,7 +5,6 @@ from airflow.operators.dummy import DummyOperator
 from airflow.hooks.base import BaseHook
 from datetime import datetime
 
-
 mongo_connection = BaseHook.get_connection("my_mongo_database")
 mongo_username = mongo_connection.login
 mongo_password = mongo_connection.password
