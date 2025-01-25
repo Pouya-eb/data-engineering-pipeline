@@ -68,7 +68,7 @@ with DAG(
         task_id='restore_mongo',
         bash_command=(
             f'docker exec -i mongo sh -c "mongorestore --username {mongo_username} --password {mongo_password} --authenticationDatabase admin --db mydb --collection videos /data/db/videos.bson"'
-            f'docker exec -i mongo sh -c "mongorestore --username {mongo_username} --password {mongo_password} --authenticationDatabase admin --db mydb --collection videos /data/db/videos.bson"'
+            # f'docker exec -i mongo sh -c "mongorestore --username {mongo_username} --password {mongo_password} --authenticationDatabase admin --db mydb --collection videos /data/db/videos.bson"'
             #'docker exec -i mongo sh'
         ),
     )
