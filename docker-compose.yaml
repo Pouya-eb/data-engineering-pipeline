@@ -67,6 +67,9 @@ x-airflow-common: &airflow-common
     AIRFLOW_VAR_POSTGRES_CSV_DB: ${CSV_POSTGRES_DB}
     AIRFLOW_VAR_POSTGRES_CSV_USER: ${CSV_POSTGRES_USER}
     AIRFLOW_VAR_POSTGRES_CSV_PASSWORD: ${CSV_POSTGRES_PASSWORD}
+    AIRFLOW_VAR_IDS_PATH: ${AIRFLOW_VAR_IDS_PATH}
+    AIRFLOW_VAR_CHAT_ID: ${AIRFLOW_VAR_CHAT_ID}
+    AIRFLOW_VAR_TELEGRAM_BOT_TOKEN: ${AIRFLOW_VAR_TELEGRAM_BOT_TOKEN}
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
     # See https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/check-health.html#scheduler-health-check-server
@@ -83,6 +86,8 @@ x-airflow-common: &airflow-common
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
+    - ${AIRFLOW_PROJ_DIR:-.}/utils:/opt/airflow/utils
+    - ${AIRFLOW_PROJ_DIR:-.}/airflow-data:/opt/airflow/airflow-data
     - /var/run/docker.sock:/var/run/docker.sock
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on: &airflow-common-depends-on
@@ -244,8 +249,8 @@ services:
           echo "   https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html#before-you-begin"
           echo
         fi
-        mkdir -p /sources/logs /sources/dags /sources/plugins
-        chown -R "${AIRFLOW_UID}:0" /sources/{logs,dags,plugins}
+        mkdir -p /sources/logs /sources/dags /sources/plugins /sources/utils source/airflow-data
+        chown -R "${AIRFLOW_UID}:0" /sources/{logs,dags,plugins,utils,airflow-data}
         exec /entrypoint airflow version
     # yamllint enable rule:line-length
     environment:
