@@ -5,12 +5,9 @@ from airflow.operators.dummy import DummyOperator
 from airflow.hooks.base import BaseHook
 from datetime import datetime
 
-
 mongo_connection = BaseHook.get_connection("my_mongo_database")
 mongo_username = mongo_connection.login
 mongo_password = mongo_connection.password
-print(mongo_username)
-print(mongo_password)
 
 default_args = {
     'owner': 'airflow',
@@ -68,7 +65,6 @@ with DAG(
         task_id='restore_mongo',
         bash_command=(
             f'docker exec -i mongo sh -c "mongorestore --username {mongo_username} --password {mongo_password} --authenticationDatabase admin --db mydb --collection videos /data/db/videos.bson"'
-            # f'docker exec -i mongo sh -c "mongorestore --username {mongo_username} --password {mongo_password} --authenticationDatabase admin --db mydb --collection videos /data/db/videos.bson"'
             #'docker exec -i mongo sh'
         ),
     )
