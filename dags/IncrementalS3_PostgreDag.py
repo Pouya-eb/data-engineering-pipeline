@@ -30,8 +30,8 @@ def channel_S3():
         # Set up connection details
         conn_id = 'Postgres_csv'
         connection = BaseHook.get_connection(conn_id)
-        host = "postgres-db-csv"
-        dbname = "csv_database"
+        host = connection.host
+        dbname = connection.schema
         user = connection.login
         password = connection.password
         port = connection.port
@@ -62,7 +62,17 @@ def channel_S3():
         # Initialize data containers
         all_data = []
         error_files = []
-
+        dest_columns = [
+            'created_at', '_id', 'username', 'userid', 'avatar_thumbnail', 'is_official', 'name',
+            'bio_links', 'total_video_visit', 'video_count', 'start_date', 'start_date_timestamp',
+            'followers_count', 'following_count', 'country', 'platform', 'update_count'
+        ]
+        insert_query = """
+            INSERT INTO channels (created_at, _id, username, userid, avatar_thumbnail, is_official, name,
+            bio_links, total_video_visit, video_count, start_date, start_date_timestamp,
+            followers_count, following_count, country, platform, update_count)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+        """
         # Process files if found
         if 'Contents' in response:
             for file in response['Contents']:
@@ -73,57 +83,24 @@ def channel_S3():
                     obj = s3.get_object(Bucket=bucket_name, Key=file_name)
                     try:
                         df = pd.read_csv(obj['Body'])
-                        all_data.append(df)
+                        channels_ids = {id for id in df['_id']}
+                        missing_ids = channels_ids - pg_ids
+                        missing_data = df[df['_id'].isin(missing_ids)]
+                        print(f"S3 table: {len(df)} rows")
+                        print(f"Postgres table: {len(pg_ids)} rows")
+                        print(f"Difference: {len(missing_data)} rows")
+                        if not missing_data.empty:
+                            cursor = conn.cursor()
+                            for row in missing_data.to_dict('records'):
+                                values = [row.get(col, None) for col in dest_columns]
+                                cursor.execute(insert_query, values)
                     except pd.errors.ParserError as e:
                         error_files.append({'file': file_name, 'error': str(e)})
-
-            # If data was successfully read from S3
-            if all_data:
-                # Concatenate all data into a single DataFrame
-                channels_df = pd.concat(all_data, ignore_index=True)
-
-                # Extract IDs from the S3 data
-                channels_ids = {id for id in channels_df['_id']}
-
-                # Identify missing IDs by comparing with PostgreSQL data
-                missing_ids = channels_ids - pg_ids
-                missing_data = channels_df[channels_df['_id'].isin(missing_ids)]
-
-                # Print debug information
-                print("First 10 rows of missing data:")
-                print(missing_data.head(10))
-
-                print("\nRow counts:")
-                print(f"S3 table: {len(channels_df)} rows")
-                print(f"Postgres table: {len(pg_ids)} rows")
-                print(f"Difference: {len(missing_data)} rows")
-                print("Step 1 Done !!")
-                # Insert rows into PostgreSQL if there is missing data
-                if not missing_data.empty:
-                    dest_columns = [
-                        'created_at', '_id', 'username', 'userid', 'avatar_thumbnail', 'is_official', 'name',
-                        'bio_links', 'total_video_visit', 'video_count', 'start_date', 'start_date_timestamp',
-                        'followers_count', 'following_count', 'country', 'platform', 'update_count'
-                    ]
-
-                    cursor = conn.cursor()
-                    for row in missing_data.to_dict('records'):
-                        values = [row.get(col, None) for col in dest_columns]
-
-                        # Insert query
-                        insert_query = """
-                        INSERT INTO channels (created_at, _id, username, userid, avatar_thumbnail, is_official, name,
-                                              bio_links, total_video_visit, video_count, start_date, start_date_timestamp,
-                                              followers_count, following_count, country, platform, update_count)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-                        """
-                        cursor.execute(insert_query, values)
-
-                    conn.commit()
-
+            
+            conn.commit()
+            print("Step 2 Done !!")
         cursor.close()
         conn.close()
-        print("Step 2 Done !!")
     # Define the DAG structure
     fetch_and_insert_missing_data()
 
