@@ -54,7 +54,6 @@ def channel_S3():
         cursor.execute("SELECT _id FROM channels;")
         pg_ids = {row[0] for row in cursor.fetchall()}
         cursor.close()
-        #conn.close()
 
         # Configure S3 client
         s3 = boto3.client(
@@ -138,7 +137,7 @@ def channel_S3():
                     # Commit the changes and close the connection
                     conn.commit()
                     cursor.close()
-                    conn.close()
+                    
                     
             
             if error_files:
@@ -148,6 +147,7 @@ def channel_S3():
         else:
             # Handle case where no files are found in the bucket
             print("No files found in the bucket.")
+        conn.close()
         
         
     
