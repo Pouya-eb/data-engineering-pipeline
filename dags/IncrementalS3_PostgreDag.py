@@ -1,8 +1,5 @@
 from datetime import datetime, timedelta
-
 from airflow.decorators import dag, task
-from airflow.models.connection import Connection
-from airflow_clickhouse_plugin.hooks.clickhouse import ClickHouseHook
 from airflow.hooks.base import BaseHook
 import pandas as pd
 import psycopg2
@@ -28,17 +25,17 @@ default_args = {
 )
 def channel_S3():
 
-    # Set up connection details
-    conn_id = 'Postgres_csv'  
-    connection = BaseHook.get_connection(conn_id)
-    host = "postgres-db-csv"
-    dbname = "csv_database"
-    user = connection.login
-    password = connection.password
-    port = connection.port
-
     @task
-    def fetch_missing_data():
+    def fetch_and_insert_missing_data():
+        # Set up connection details
+        conn_id = 'Postgres_csv'
+        connection = BaseHook.get_connection(conn_id)
+        host = "postgres-db-csv"
+        dbname = "csv_database"
+        user = connection.login
+        password = connection.password
+        port = connection.port
+
         # Establish a connection to PostgreSQL
         conn = psycopg2.connect(host=host, user=user, password=password, port=port, dbname=dbname)
         cursor = conn.cursor()
@@ -101,46 +98,33 @@ def channel_S3():
                 print(f"Postgres table: {len(pg_ids)} rows")
                 print(f"Difference: {len(missing_data)} rows")
 
-                return missing_data.to_dict('records')  # Return missing data as a list of dictionaries
+                print("Phase one Done")
+                if not missing_data.empty:
+                    dest_columns = [
+                        'created_at', '_id', 'username', 'userid', 'avatar_thumbnail', 'is_official', 'name',
+                        'bio_links', 'total_video_visit', 'video_count', 'start_date', 'start_date_timestamp',
+                        'followers_count', 'following_count', 'country', 'platform', 'update_count'
+                    ]
 
-        return []
+                    cursor = conn.cursor()
+                    for row in missing_data.to_dict('records'):
+                        values = [row.get(col, None) for col in dest_columns]
 
-    @task
-    def insert_missing_data(missing_data):
-        if not missing_data:
-            print("No missing data to insert.")
-            return
+                        # Insert query
+                        insert_query = """
+                        INSERT INTO channels (created_at, _id, username, userid, avatar_thumbnail, is_official, name,
+                                              bio_links, total_video_visit, video_count, start_date, start_date_timestamp,
+                                              followers_count, following_count, country, platform, update_count)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                        """
+                        cursor.execute(insert_query, values)
 
-        # Establish a connection to PostgreSQL
-        conn = psycopg2.connect(host=host, user=user, password=password, port=port, dbname=dbname)
-        cursor = conn.cursor()
+                    conn.commit()
 
-        dest_columns = [
-            'created_at', '_id', 'username', 'userid', 'avatar_thumbnail', 'is_official', 'name',
-            'bio_links', 'total_video_visit', 'video_count', 'start_date', 'start_date_timestamp',
-            'followers_count', 'following_count', 'country', 'platform', 'update_count'
-        ]
-
-        # Insert rows into PostgreSQL
-        for row in missing_data:
-            values = [row.get(col, None) for col in dest_columns]
-
-            # Insert query
-            insert_query = """
-            INSERT INTO channels (created_at, _id, username, userid, avatar_thumbnail, is_official, name,
-                                bio_links, total_video_visit, video_count, start_date, start_date_timestamp,
-                                followers_count, following_count, country, platform, update_count)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-            """
-
-            cursor.execute(insert_query, values)
-
-        conn.commit()
         cursor.close()
         conn.close()
-
+        print("Phase two Done")
     # Define the DAG structure
-    missing_data = fetch_missing_data()
-    insert_missing_data(missing_data)
+    fetch_and_insert_missing_data()
 
 channel_S3()
