@@ -97,8 +97,8 @@ def channel_S3():
                 print(f"S3 table: {len(channels_df)} rows")
                 print(f"Postgres table: {len(pg_ids)} rows")
                 print(f"Difference: {len(missing_data)} rows")
-
-                print("Phase one Done")
+                print("Step 1 Done !!")
+                # Insert rows into PostgreSQL if there is missing data
                 if not missing_data.empty:
                     dest_columns = [
                         'created_at', '_id', 'username', 'userid', 'avatar_thumbnail', 'is_official', 'name',
@@ -123,7 +123,7 @@ def channel_S3():
 
         cursor.close()
         conn.close()
-        print("Phase two Done")
+        print("Step 2 Done !!")
     # Define the DAG structure
     fetch_and_insert_missing_data()
 
