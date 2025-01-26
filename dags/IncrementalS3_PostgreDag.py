@@ -54,7 +54,7 @@ def channel_S3():
         cursor.execute("SELECT _id FROM channels;")
         pg_ids = {row[0] for row in cursor.fetchall()}
         cursor.close()
-        conn.close()
+        #conn.close()
 
         # Configure S3 client
         s3 = boto3.client(
@@ -80,7 +80,7 @@ def channel_S3():
                 file_name = file['Key']
                 
                 # Process CSV files containing 'channels' in the name
-                if 'channels' in file_name:
+                if 'channels' in file_name and '.csv' in file_name:
                     obj = s3.get_object(Bucket=bucket_name, Key=file_name)
                     try:
                         df = pd.read_csv(obj['Body'])
@@ -88,9 +88,6 @@ def channel_S3():
                     except pd.errors.ParserError as e:
                         error_files.append({'file': file_name, 'error': str(e)})
                 
-                # Break the loop if a JSON file is encountered
-                elif '.json' in file_name:
-                    break
 
             # If data was successfully read from S3
             if all_data:
@@ -112,7 +109,37 @@ def channel_S3():
                 print(f"S3 table: {len(channels_df)} rows")
                 print(f"Postgres table: {len(pg_ids)} rows")
                 print(f"Difference: {len(missing_data)} rows")
-            
+                # Insert missing data into PostgreSQL
+                if not missing_data.empty:
+                    # Establish PostgreSQL connection again for insertion
+                    cursor = conn.cursor()
+
+                    # Insert missing data into PostgreSQL
+                    for _, row in missing_data.iterrows():
+                        # Customize based on your PostgreSQL table schema
+                        insert_query = """
+                        INSERT INTO channels (_id, username, userid, avatar_thumbnail, is_official, name, bio_links, 
+                            total_video_visit, video_count, start_date, start_date_timestamp, followers_count, 
+                            following_count, country, platform, created_at, update_count)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """
+                        # Extracting the necessary fields for insertion
+                        values = (
+                            row['_id'], row['object_username'], row['object_userid'], row['object_avatar_thumbnail'],
+                            row['object_is_official'], row['object_name'], row['object_bio_links'], 
+                            row['object_total_video_visit'], row['object_video_count'], row['object_start_date'],
+                            row['object_start_date_timestamp'], row['object_followers_count'], 
+                            row['object_following_count'], row['object_country'], row['object_platform'],
+                            row['created_at'], row['update_count']
+                        )
+
+                        cursor.execute(insert_query, values)
+
+                    # Commit the changes and close the connection
+                    conn.commit()
+                    cursor.close()
+                    conn.close()
+                    
             
             if error_files:
                 print("\nFiles with errors:")
@@ -121,7 +148,8 @@ def channel_S3():
         else:
             # Handle case where no files are found in the bucket
             print("No files found in the bucket.")
-
+        
+        
     
     print_context() >> incremental_CSV()
 
