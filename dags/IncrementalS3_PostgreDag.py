@@ -4,6 +4,9 @@ from airflow.decorators import dag, task
 from airflow.models.connection import Connection
 from airflow_clickhouse_plugin.hooks.clickhouse import ClickHouseHook
 from airflow.hooks.base import BaseHook
+import pandas as pd
+import psycopg2
+import boto3
 
 # Default arguments for the DAG
 default_args = {
@@ -24,10 +27,6 @@ default_args = {
     tags=['Incremental', 'S3-channels']
 )
 def channel_S3():
-    from pprint import pprint
-    import pandas as pd
-    import psycopg2
-    import boto3
 
     # Set up connection details
     conn_id = 'Postgres_csv'  
@@ -37,11 +36,6 @@ def channel_S3():
     user = connection.login
     password = connection.password
     port = connection.port
-
-    # Task to print context for debugging
-    @task
-    def print_context(**context):
-        pprint(context)
 
     @task
     def fetch_missing_data():
@@ -147,7 +141,6 @@ def channel_S3():
 
     # Define the DAG structure
     missing_data = fetch_missing_data()
-    print_context >> missing_data >> insert_missing_data(missing_data)
-
+    insert_missing_data(missing_data)
 
 channel_S3()
