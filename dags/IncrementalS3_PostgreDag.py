@@ -31,7 +31,7 @@ def channel_S3():
     # Set up connection details
     conn_id = 'Postgres_csv'  
     connection = BaseHook.get_connection(conn_id)
-    host = connection.host
+    host = "postgres-db-csv"
     dbname = "csv_database"
     user = connection.login
     password = connection.password
