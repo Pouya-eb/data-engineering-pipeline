@@ -43,9 +43,8 @@ def channel_S3():
     def print_context(**context):
         pprint(context)
 
-    # Task to process incremental CSV files
     @task
-    def incremental_CSV():
+    def fetch_missing_data():
         # Establish a connection to PostgreSQL
         conn = psycopg2.connect(host=host, user=user, password=password, port=port, dbname=dbname)
         cursor = conn.cursor()
@@ -77,7 +76,7 @@ def channel_S3():
         if 'Contents' in response:
             for file in response['Contents']:
                 file_name = file['Key']
-                
+
                 # Process CSV files containing 'channels' in the name
                 if 'channels' in file_name and '.csv' in file_name:
                     obj = s3.get_object(Bucket=bucket_name, Key=file_name)
@@ -86,7 +85,6 @@ def channel_S3():
                         all_data.append(df)
                     except pd.errors.ParserError as e:
                         error_files.append({'file': file_name, 'error': str(e)})
-                
 
             # If data was successfully read from S3
             if all_data:
@@ -95,63 +93,61 @@ def channel_S3():
 
                 # Extract IDs from the S3 data
                 channels_ids = {id for id in channels_df['_id']}
-                
+
                 # Identify missing IDs by comparing with PostgreSQL data
                 missing_ids = channels_ids - pg_ids
                 missing_data = channels_df[channels_df['_id'].isin(missing_ids)]
-                
-                # Print some debug information
+
+                # Print debug information
                 print("First 10 rows of missing data:")
                 print(missing_data.head(10))
-                
+
                 print("\nRow counts:")
                 print(f"S3 table: {len(channels_df)} rows")
                 print(f"Postgres table: {len(pg_ids)} rows")
                 print(f"Difference: {len(missing_data)} rows")
-                # Insert missing data into PostgreSQL
-                if not missing_data.empty:
-                    # Establish PostgreSQL connection again for insertion
-                    cursor = conn.cursor()
 
-                    # Insert missing data into PostgreSQL
-                    for _, row in missing_data.iterrows():
-                        # Customize based on your PostgreSQL table schema
-                        insert_query = """
-                        INSERT INTO channels (_id, username, userid, avatar_thumbnail, is_official, name, bio_links, 
-                            total_video_visit, video_count, start_date, start_date_timestamp, followers_count, 
-                            following_count, country, platform, created_at, update_count)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        """
-                        # Extracting the necessary fields for insertion
-                        values = (
-                            row['_id'], row['object_username'], row['object_userid'], row['object_avatar_thumbnail'],
-                            row['object_is_official'], row['object_name'], row['object_bio_links'], 
-                            row['object_total_video_visit'], row['object_video_count'], row['object_start_date'],
-                            row['object_start_date_timestamp'], row['object_followers_count'], 
-                            row['object_following_count'], row['object_country'], row['object_platform'],
-                            row['created_at'], row['update_count']
-                        )
+                return missing_data.to_dict('records')  # Return missing data as a list of dictionaries
 
-                        cursor.execute(insert_query, values)
+        return []
 
-                    # Commit the changes and close the connection
-                    conn.commit()
-                    cursor.close()
-                    
-                    
-            
-            if error_files:
-                print("\nFiles with errors:")
-                for error in error_files:
-                    print(f"File: {error['file']}, Error: {error['error']}")
-        else:
-            # Handle case where no files are found in the bucket
-            print("No files found in the bucket.")
+    @task
+    def insert_missing_data(missing_data):
+        if not missing_data:
+            print("No missing data to insert.")
+            return
+
+        # Establish a connection to PostgreSQL
+        conn = psycopg2.connect(host=host, user=user, password=password, port=port, dbname=dbname)
+        cursor = conn.cursor()
+
+        dest_columns = [
+            'created_at', '_id', 'username', 'userid', 'avatar_thumbnail', 'is_official', 'name',
+            'bio_links', 'total_video_visit', 'video_count', 'start_date', 'start_date_timestamp',
+            'followers_count', 'following_count', 'country', 'platform', 'update_count'
+        ]
+
+        # Insert rows into PostgreSQL
+        for row in missing_data:
+            values = [row.get(col, None) for col in dest_columns]
+
+            # Insert query
+            insert_query = """
+            INSERT INTO channels (created_at, _id, username, userid, avatar_thumbnail, is_official, name,
+                                bio_links, total_video_visit, video_count, start_date, start_date_timestamp,
+                                followers_count, following_count, country, platform, update_count)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+            """
+
+            cursor.execute(insert_query, values)
+
+        conn.commit()
+        cursor.close()
         conn.close()
-        
-        
-    
-    print_context() >> incremental_CSV()
+
+    # Define the DAG structure
+    missing_data = fetch_missing_data()
+    print_context >> missing_data >> insert_missing_data(missing_data)
 
 
 channel_S3()
