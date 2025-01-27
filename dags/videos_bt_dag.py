@@ -3,15 +3,17 @@ import time
 from airflow.decorators import dag, task
 from airflow_clickhouse_plugin.hooks.clickhouse import ClickHouseHook
 from telegram_bot import Bot
+from airflow.utils.dates import days_ago
 
-# Callback برای ارسال پیام تلگرام در صورت بروز خطا
+def get_clickhouse_hook():
+    return ClickHouseHook(clickhouse_conn_id="my_clickhouse_database")
+
 def telegram_callback(context):
     dag = context.get("dag")
     Bot().send_message(f"Error in DAG: {dag.dag_id}")
 
-# تنظیمات پیش‌فرض DAG
 default_args = {
-    "owner": "Mkz-Majid",
+    "owner": "Mkztb, ",
     "on_failure_callback": telegram_callback,
     "depends_on_past": False,
     "start_date": datetime(2025, 1, 1),
@@ -19,7 +21,6 @@ default_args = {
     "retry_delay": timedelta(minutes=5),
 }
 
-# تعریف DAG
 @dag(
     dag_id='videos_bt',
     description='Transform data and create videos big table',
@@ -40,15 +41,29 @@ def videos_bt():
     @task
     def create_new_ver_channel():
         try:
-            client = Client('82.115.20.70', port=9000 , connect_timeout=60, send_receive_timeout=300)
-
+            hook = get_clickhouse_hook()
+            hook.run("CREATE DATABASE IF NOT EXISTS bronze;")
+            hook.run("""
+                CREATE TABLE IF NOT EXISTS bronze.channels
+                (
+                    userid String,
+                    bio_links String,
+                    total_video_visit UInt64,
+                    video_count UInt64,
+                    start_date DateTime,
+                    followers_count UInt64,
+                    following_count UInt64,
+                    country String,
+                    update_count UInt64
+                ) ENGINE = MergeTree()
+                ORDER BY (userid);
+            """)
 
             drop_query = '''
             DROP TABLE IF EXISTS bronze.channels_new;
             '''
-            client.execute(drop_query)
+            hook.run(drop_query)
 
-            # ایجاد جدول جدید
             create_query = '''
             CREATE TABLE bronze.channels_new
             (
@@ -64,9 +79,8 @@ def videos_bt():
             ) ENGINE = MergeTree()
             ORDER BY (userid);
             '''
-            client.execute(create_query)
+            hook.run(create_query)
 
-            # درج داده‌ها
             insert_query = '''
             INSERT INTO bronze.channels_new
             WITH
@@ -109,13 +123,10 @@ def videos_bt():
             SELECT *
             FROM combined_cte;
             '''
-            client.execute(insert_query)
+            hook.run(insert_query)
 
-            print("Table 'channels_new' created and data transferred.")
-            time.sleep(5)  
         except Exception as e:
-            print(f"Error in create_new_ver_channel: {e}")
-            raise
+            print(f"An error occurred: {e}")
 
     @task
     def etl():
