@@ -3,10 +3,18 @@ from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from airflow.models.connection import Connection
 from airflow_clickhouse_plugin.hooks.clickhouse import ClickHouseHook
+from telegram_bot import Bot
+
+
+def telegram_callback(context):
+    dag = context.get("dag")
+    Bot().send_message(dag)
+
 
 
 default_args = {
     "owner": "Mkz-Majid",
+    "on_failure_callback": telegram_callback,
     "depends_on_past": False,
     "start_date": datetime(2025, 1, 1),
     "retries": 1,
@@ -25,7 +33,7 @@ default_args = {
 def videos_bt():
     from pprint import pprint
     from clickhouse_driver import Client
-    clickhouse_engine = ClickHouseHook(clickhouse_conn_id='clickhouse_tcp')    
+    clickhouse_engine = ClickHouseHook(clickhouse_conn_id='clickhouse_tcp')
 
 
     @task
