@@ -5,10 +5,17 @@ from airflow.models import Variable
 import pandas as pd
 import psycopg2
 import boto3
+from telegram_bot import Bot
+
+
+def telegram_callback(context):
+    dag = context.get("dag")
+    Bot().send_message(dag)
 
 # Default arguments for the DAG
 default_args = {
     "owner": "US",
+    "on_failure_callback": telegram_callback,
     "depends_on_past": False,
     "start_date": datetime(2025, 1, 1),
     "retries": 1,
