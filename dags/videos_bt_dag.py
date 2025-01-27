@@ -42,8 +42,8 @@ def videos_bt():
     def create_new_ver_channel():
         try:
             hook = get_clickhouse_hook()
-            hook.run("CREATE DATABASE IF NOT EXISTS bronze;")
-            hook.run("""
+            hook.execute("CREATE DATABASE IF NOT EXISTS bronze;")
+            hook.execute("""
                 CREATE TABLE IF NOT EXISTS bronze.channels
                 (
                     userid String,
@@ -62,7 +62,7 @@ def videos_bt():
             drop_query = '''
             DROP TABLE IF EXISTS bronze.channels_new;
             '''
-            hook.run(drop_query)
+            hook.execute(drop_query)
 
             create_query = '''
             CREATE TABLE bronze.channels_new
@@ -79,7 +79,7 @@ def videos_bt():
             ) ENGINE = MergeTree()
             ORDER BY (userid);
             '''
-            hook.run(create_query)
+            hook.execute(create_query)
 
             insert_query = '''
             INSERT INTO bronze.channels_new
@@ -123,7 +123,7 @@ def videos_bt():
             SELECT *
             FROM combined_cte;
             '''
-            hook.run(insert_query)
+            hook.execute(insert_query)
 
         except Exception as e:
             print(f"An error occurred: {e}")
