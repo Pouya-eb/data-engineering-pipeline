@@ -32,19 +32,17 @@ def videos_bt():
     from pprint import pprint
     from clickhouse_driver import Client
 
-    # تسک برای چاپ اطلاعات Context
     @task
     def print_context(**context):
         pprint(context)
-        time.sleep(10)  # تأخیر 10 ثانیه‌ای (در صورت نیاز)
+        time.sleep(10)  
 
-    # تسک برای ایجاد جدول جدید
     @task
     def create_new_ver_channel():
         try:
-            client = Client('82.115.20.70', port=9000)
+            client = Client('82.115.20.70', port=9000 , connect_timeout=60, send_receive_timeout=300)
 
-            # حذف جدول (در صورت وجود)
+
             drop_query = '''
             DROP TABLE IF EXISTS bronze.channels_new;
             '''
@@ -122,7 +120,7 @@ def videos_bt():
     @task
     def etl():
         try:
-            client = Client('82.115.20.70', port=9000)
+            client = Client('82.115.20.70', port=9000, connect_timeout=60, send_receive_timeout=300)
 
             create_db = '''
             CREATE DATABASE IF NOT EXISTS silver;
