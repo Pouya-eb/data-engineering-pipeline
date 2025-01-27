@@ -111,8 +111,8 @@ def importing_new_data_if_exists():
         batch_size=1000,
     )
 
-    for result in data_batch:
-        rows = [extracting_object(row) for row in bson.decode_all(data_batch)]
+    for batch in data_batch:
+        rows = [extracting_object(row) for row in bson.decode_all(batch)]
         hook.execute("INSERT INTO bronze.videos VALUES", rows)
 
     return "Data has been synced successfully"
