@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from airflow.hooks.base import BaseHook
+from airflow.models import Variable
 import pandas as pd
 import psycopg2
 import boto3
@@ -48,13 +49,13 @@ def channel_S3():
         # Configure S3 client
         s3 = boto3.client(
             's3',
-            aws_access_key_id='ab5fc903-7426-4a49-ae3e-024b53c30d27',
-            aws_secret_access_key='f70c316b936ffc50668d21442961339a90b627daa190cff89e6a395b821001f2',
-            endpoint_url='https://s3.ir-thr-at1.arvanstorage.ir'
+            aws_access_key_id=Variable.get("aws_access_key_id"),
+            aws_secret_access_key=Variable.get("aws_secret_access_key"),
+            endpoint_url=Variable.get("endpoint_url")
         )
 
         # Define the S3 bucket name
-        bucket_name = 'qbc'
+        bucket_name = Variable.get("bucket_name")
 
         # Fetch the list of objects from the bucket
         response = s3.list_objects_v2(Bucket=bucket_name)
