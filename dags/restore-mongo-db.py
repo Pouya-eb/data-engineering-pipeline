@@ -2,7 +2,12 @@ from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import BranchPythonOperator
 from airflow.operators.dummy import DummyOperator
+from airflow.hooks.base import BaseHook
 from datetime import datetime
+
+mongo_connection = BaseHook.get_connection("my_mongo_database")
+mongo_username = mongo_connection.login
+mongo_password = mongo_connection.password
 
 default_args = {
     'owner': 'airflow',
@@ -36,14 +41,14 @@ with DAG(
     check_db_and_collection = BashOperator(
         task_id='check_db_and_collection',
         bash_command=(
-            '''
+            f'''
             docker exec -i mongo mongo --quiet --eval '
-            var db = connect("mongodb://admin:password@localhost:27017/admin");
-            if (db.getSiblingDB("mydb").getCollection("videos").count() > 0) {
+            var db = connect("mongodb://{mongo_username}:{mongo_password}@localhost:27017/admin");
+            if (db.getSiblingDB("mydb").getCollection("videos").count() > 0) {{
                 print("Collection exists");
-            } else {
+            }} else {{
                 print("Collection does not exist");
-            }
+            }}
             '
             '''
         ),
@@ -59,7 +64,7 @@ with DAG(
     restore_mongo = BashOperator(
         task_id='restore_mongo',
         bash_command=(
-            'docker exec -i mongo sh -c "mongorestore --username admin --password password --authenticationDatabase admin --db mydb --collection videos /data/db/videos.bson"'
+            f'docker exec -i mongo sh -c "mongorestore --username {mongo_username} --password {mongo_password} --authenticationDatabase admin --db mydb --collection videos /data/db/videos.bson"'
             #'docker exec -i mongo sh'
         ),
     )
