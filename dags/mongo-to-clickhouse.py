@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
 
+import bson
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python import PythonOperator
 from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow_clickhouse_plugin.hooks.clickhouse import ClickHouseHook
 
@@ -49,8 +50,8 @@ def extracting_object(row):
 
 def creating_table_clickhouse():
     hook = get_conn_clickhouse()
+
     hook.execute("CREATE DATABASE IF NOT EXISTS bronze;")
-    hook.execute("DROP TABLE IF EXISTS bronze.videos;")
     hook.execute(
         """
         CREATE TABLE IF NOT EXISTS bronze.videos (
@@ -88,7 +89,7 @@ def creating_table_clickhouse():
     )
 
 
-def importing_data_to_clickhouse():
+def importing_new_data_if_exists():
 
     client = get_conn_mongo()
     database = client["mydb"]
@@ -96,24 +97,29 @@ def importing_data_to_clickhouse():
 
     hook = get_conn_clickhouse()
 
-    last_id = None
-    batch_size = 1000
+    last_data = hook.execute("SELECT max(created_at) FROM bronze.videos;")
+    new_data = collection.find_one(
+        {"created_at": {"$gte": (last_data[0][0] + timedelta(seconds=1))}}
+    )
 
-    while True:
-        query = {} if last_id is None else {"_id": {"$gt": last_id}}
-        batch = list(collection.find(query).sort({"_id": 1}).limit(batch_size))
+    if not new_data:
+        return "There is no new data to sync"
 
-        if not batch:
-            break
+    data_batch = collection.find_raw_batches(
+        filter={"created_at": {"$gte": (last_data[0][0] + timedelta(seconds=1))}},
+        sort=[("_id", 1)],
+        batch_size=1000,
+    )
 
-        last_id = batch[-1]["_id"]
-        rows = [extracting_object(row) for row in batch]
-
+    for result in data_batch:
+        rows = [extracting_object(row) for row in bson.decode_all(data_batch)]
         hook.execute("INSERT INTO bronze.videos VALUES", rows)
+
+    return "Data has been synced successfully"
 
 
 default_args = {
-    "owner": "airflow",
+    "owner": "pouya, kavian",
     "depends_on_past": False,
     "start_date": datetime(2025, 1, 1),
     "retries": 1,
@@ -122,10 +128,10 @@ default_args = {
 
 
 with DAG(
-    dag_id="mongo-to-clickhouse",
+    dag_id="syncing_mongo_clickhouse",
     default_args=default_args,
-    description="importing data from mongo into clickhouse (bronze_layer)",
-    schedule="@once",
+    description="importing data from mongo into clickhouse incremental (bronze_layer)",
+    schedule="30 18 * * *",
     catchup=False,
     tags=["mongo", "clickhouse"],
 ) as dag:
@@ -135,8 +141,8 @@ with DAG(
     )
 
     importing_data_to_clickhouse_task = PythonOperator(
-        task_id="importing_data_from_mongo_to_clickhouse_task",
-        python_callable=importing_data_to_clickhouse,
+        task_id="syncing_data_between_mongo_and_clickhouse",
+        python_callable=importing_new_data_if_exists,
     )
 
 
