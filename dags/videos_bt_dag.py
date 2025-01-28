@@ -170,7 +170,7 @@ def videos_bt():
         INSERT INTO silver.Videos_channels_OBT
             SELECT
             v.id AS video_id,
-            v.owner_username,
+            decodeURLFormComponent(v.owner_username) as owner_username,
             v.title AS video_title,
             v.uid AS video_uid,
             v.visit_count AS video_visit_count,
@@ -180,7 +180,7 @@ def videos_bt():
             v.description AS video_description,
             v.is_deleted AS video_is_deleted,
             v.update_count AS video_update_count,
-            c.userid AS channel_userid,
+            decodeURLFormComponent(c.userid) AS channel_userid,
             c.bio_links AS channel_bio_links,
             c.total_video_visit AS channel_total_video_visit,
             c.video_count AS channel_video_count,
