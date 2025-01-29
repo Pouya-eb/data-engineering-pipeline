@@ -106,16 +106,9 @@ def importing_new_data_if_exists():
     hook = get_conn_clickhouse()
 
     last_data = hook.execute("SELECT max(created_at) FROM bronze.videos;")
-    new_data = collection.find_one(
-        {"created_at": {"$gte": (last_data[0][0] + timedelta(seconds=1))}}
-    )
-
-    if not new_data:
-        return "There is no new data to sync"
 
     data_batch = collection.find_raw_batches(
         filter={"created_at": {"$gte": (last_data[0][0] + timedelta(seconds=1))}},
-        sort=[("_id", 1)],
         batch_size=1000,
     )
 
@@ -123,7 +116,7 @@ def importing_new_data_if_exists():
         rows = [extracting_object(row) for row in bson.decode_all(batch)]
         hook.execute("INSERT INTO bronze.videos VALUES", rows)
 
-    return "Data has been synced successfully"
+    return "Data is synced"
 
 
 default_args = {
