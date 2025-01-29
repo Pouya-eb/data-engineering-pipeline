@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2025, 1, 22),
+    'start_date': datetime(2025, 1, 22),  # Runs from this date onwards
     'retries': 0,
     'retry_delay': timedelta(minutes=5),
 }
@@ -39,20 +39,19 @@ def create_mongo_client():
 
     return MongoClient(connection_uri)
 
-# Task 1: List JSON files in S3
+# Task 1: List JSON files in S3 (all up to today)
 def list_s3_files(ti):
     s3 = create_s3_client()
     bucket_name = os.getenv('S3_BUCKET_NAME')
 
     response = s3.list_objects_v2(Bucket=bucket_name)
     
-    target_date = "2025-01-22"
     json_files = [
         file['Key'] for file in response.get('Contents', [])
-        if file['Key'].endswith(".json") and target_date in file['Key']
+        if file['Key'].endswith(".json")  # Removed date filtering, gets all
     ]
 
-    logger.info(f"Found JSON files for {target_date}: {json_files}")
+    logger.info(f"Found JSON files: {json_files}")
     ti.xcom_push(key='json_files', value=json_files)
 
 # Task 2: Download JSON files from S3
@@ -69,18 +68,23 @@ def download_s3_files(ti):
 
     for file in json_files:
         file_id = os.path.basename(file)
+        local_file_path = os.path.join(path_write_json, file_id)
 
-        # Skip if already processed (based on file id from S3)
         if batch_collection.find_one({"file_name": file_id}):
-            logger.info(f"File already processed: {file_id}")
+            logger.info(f"Skipping processed file: {file_id}")
             continue
 
-        local_file_path = os.path.join(path_write_json, file_id)
-        if not os.path.exists(local_file_path):
-            logger.info(f"Downloading file: {file}")
-            s3.download_file(os.getenv('S3_BUCKET_NAME'), file, local_file_path)
+        if os.path.exists(local_file_path):
+            logger.info(f"Skipping already downloaded file: {file_id}")
+            continue
+
+        logger.info(f"Downloading file: {file}")
+        s3.download_file(os.getenv('S3_BUCKET_NAME'), file, local_file_path)
+
 
 # Task 3: Insert JSON data into MongoDB (Handle Duplicate IDs)
+# Task 3: Insert JSON data into MongoDB (Handle Duplicate IDs and Missing Columns)
+# Task 3: Insert JSON data into MongoDB (Handle Duplicate IDs and Missing Columns)
 def insert_to_mongodb():
     mongo_client = create_mongo_client()
     db = mongo_client["mydb"]
@@ -106,17 +110,28 @@ def insert_to_mongodb():
         try:
             with open(file_path, 'r') as file:
                 records = []
+                all_columns = set()  # Track all columns across all records
                 for line in file:
                     try:
                         record = json.loads(line.strip())  
                         records.append(record)  # Collect all records
-
+                        all_columns.update(record.keys())  # Update column names
                     except json.JSONDecodeError as e:
                         logger.warning(f"JSONDecodeError: {e} in file {file_name}, line: {line}")
                         continue
 
                 if records:
+                    logger.info(f"All columns in the file: {all_columns}")
+                    # Check for missing columns and add them with None as value
+                    for idx, record in enumerate(records):
+                        missing_columns = all_columns - set(record.keys())
+                        for column in missing_columns:
+                            record[column] = None  # Add missing columns with None values
+                        logger.debug(f"Record {idx} after adding missing columns: {record}")
+
                     try:
+                        # Log number of records to insert
+                        logger.info(f"Inserting {len(records)} records into 'videos'.")
                         videos_collection.insert_many(records, ordered=False)  # Skip duplicates, continue inserting
                         logger.info(f"Inserted {len(records)} records into 'videos'.")
                     except errors.BulkWriteError as bwe:
@@ -130,12 +145,14 @@ def insert_to_mongodb():
         except Exception as e:
             logger.error(f"Error processing file {file_name}: {str(e)}", exc_info=True)
 
+
 # Define the DAG
 with DAG(
-    's3_to_mongodb_pipeline',
+    dag_id='s3_to_mongodb_pipeline',  # DAG name (same everywhere)
+    schedule_interval='0 0 * * *',  # Runs every night at midnight
     default_args=default_args,
-    schedule_interval=None,  # Run manually
-    catchup=False,
+    catchup=True,  # Ensures past data is processed
+    tags=['Incremental', 'S3-channels'],
 ) as dag:
 
     task_list_s3_files = PythonOperator(
