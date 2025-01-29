@@ -16,11 +16,10 @@ def creating_table_clickhouse():
     hook.execute(
         """
         CREATE TABLE IF NOT EXISTS gold.geo_distribution (
-            country                         String,
-            total_channel_counts            AggregateFunction(count, String),
-            largest_follower_counts         AggregateFunction(max, UInt64),
-            average_follower_counts         AggregateFunction(avg, UInt64),
-            average_video_visits            AggregateFunction(avg, UInt64)
+            country                 String,
+            channel_counts          AggregateFunction(count, String),
+            follower_counts         AggregateFunction(avg, UInt64),
+            video_visits            AggregateFunction(avg, UInt64)
         ) ENGINE = AggregatingMergeTree()
           ORDER BY country;
         """
@@ -36,10 +35,9 @@ def creating_materialized_view_clickhouse():
         TO gold.geo_distribution AS
         SELECT 
             channel_country                                      AS country,
-            countState(channel_userid)                           AS total_channel_counts,
-            maxState(CAST(channel_follower_counts AS UInt64))    As largest_follower_counts,
-            avgState(CAST(channel_followers_count AS UInt64))    AS average_follower_counts,
-            avgState(CAST(video_visit_count AS UInt64))          AS average_video_visits
+            countState(channel_userid)                           AS channel_counts,
+            avgState(CAST(channel_followers_count AS UInt64))    AS follower_counts,
+            avgState(CAST(video_visit_count AS UInt64))          AS video_visits
         FROM silver.Videos_channels_OBT
         WHERE channel_country IS NOT NULL
             AND channel_country != ''
@@ -53,11 +51,10 @@ def initializeing_table():
     hook.execute(
         """
         INSERT INTO gold.geo_distribution 
-            (country, total_channel_counts, largest_follower_counts, average_follower_counts, average_video_visits)
+            (country, channel_counts, follower_counts, video_visits)
         SELECT
             channel_country,
             countState(channel_userid),
-            maxState(CAST(channel_followers_count AS UInt64)),
             avgState(CAST(channel_followers_count AS UInt64)),
             avgState(CAST(video_visit_count AS UInt64))
         FROM silver.Videos_channels_OBT
@@ -69,7 +66,7 @@ def initializeing_table():
 
 
 default_args = {
-    "owner": "pouya",
+    "owner": "airflow",
     "depends_on_past": False,
     "start_date": datetime(2025, 1, 1),
     "retries": 1,
