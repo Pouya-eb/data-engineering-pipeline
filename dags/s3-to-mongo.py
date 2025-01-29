@@ -9,7 +9,7 @@ import boto3
 from airflow.hooks.base import BaseHook
 from telegram_bot import Bot
 from airflow.decorators import dag
-
+###
 def telegram_callback(context):
     dag = context.get("dag")
     Bot().send_message(dag)
