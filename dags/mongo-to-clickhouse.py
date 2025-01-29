@@ -105,10 +105,12 @@ def importing_new_data_if_exists():
 
     hook = get_conn_clickhouse()
 
-    last_data = hook.execute("SELECT max(created_at) FROM bronze.videos;")
+    clickhouse_last_data = hook.execute("SELECT max(created_at) FROM bronze.videos;")
+    print(f'ClickHouse last data: {clickhouse_last_data}')
 
     data_batch = collection.find_raw_batches(
-        filter={"created_at": {"$gte": (last_data[0][0] + timedelta(seconds=1))}},
+        filter={"created_at": {"$gt": clickhouse_last_data[0][0]}},
+        sort=[("created_at", 1)],
         batch_size=1000,
     )
 
