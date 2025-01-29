@@ -37,7 +37,7 @@ def creating_materialized_view_clickhouse():
         SELECT 
             channel_country                                      AS country,
             countState(channel_userid)                           AS total_channel_counts,
-            maxState(CAST(channel_follower_counts AS UInt64))    As largest_follower_counts,
+            maxState(CAST(channel_followers_count AS UInt64))    As largest_follower_counts,
             avgState(CAST(channel_followers_count AS UInt64))    AS average_follower_counts,
             avgState(CAST(video_visit_count AS UInt64))          AS average_video_visits
         FROM silver.Videos_channels_OBT
