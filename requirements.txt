@@ -1,5 +1,6 @@
 apache-airflow-providers-mongo
 airflow-clickhouse-plugin
+pymongo
 psycopg2-binary
 pandas
 boto3
