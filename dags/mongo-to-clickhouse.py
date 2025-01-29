@@ -5,6 +5,12 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow_clickhouse_plugin.hooks.clickhouse import ClickHouseHook
+from telegram_bot import Bot
+
+
+def telegram_callback(context):
+    dag = context.get("dag")
+    Bot().send_message(dag)
 
 
 def get_conn_mongo():
@@ -23,6 +29,7 @@ def extracting_object(row):
         row.get("created_at"),
         row.get("expire_at"),
         row.get("is_produce_to_kafka"),
+        row.get("lang"),
         obj.get("platform"),
         obj.get("id"),
         obj.get("owner_username"),
@@ -60,6 +67,7 @@ def creating_table_clickhouse():
             created_at              DATETIME,
             expire_at               DATETIME,
             is_produce_to_kafka     BOOLEAN,
+            lang                    Nullable(String),
             platform                Nullable(String),
             id                      Nullable(INTEGER),
             owner_username          Nullable(String),
@@ -124,6 +132,7 @@ default_args = {
     "start_date": datetime(2025, 1, 1),
     "retries": 1,
     "retry_delay": timedelta(minutes=5),
+    "on_failure_callback": telegram_callback,
 }
 
 
