@@ -361,8 +361,43 @@ services:
       # - ./clickhouse/config/:/etc/clickhouse-server/config.d/
       - ./clickhouse/users/:/etc/clickhouse-server/users.d/
 
+  metabase:
+    image: metabase/metabase:v0.52.x
+    container_name: metabase
+    ports:
+      - "3000:3000"
+    environment:
+      MB_DB_TYPE: mysql
+      MB_PLUGINS_DIR: /plugins
+      MB_DB_CONNECTION_URI: ${MB_DB_CONNECTION_URI}
+    volumes:
+      - /dev/urandom:/dev/random:ro
+      - ${AIRFLOW_PROJ_DIR:-.}/metabase-plugins:/plugins
+    healthcheck:
+      test: curl --fail -I http://localhost:3000/api/health || exit
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      - mysql
+
+  mysql:
+    image: mysql:8.0.28-oracle
+    container_name: mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQLUSER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - ${AIRFLOW_PROJ_DIR:-.}/mysql-db:/var/lib/mysql
+
 volumes:
   postgres-db-volume:
   postgres-data:
   postgres-bakcup:
   mongo-data:
+  metabase-plugins:
+  mysql-db:

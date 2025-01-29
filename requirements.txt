@@ -1,4 +1,7 @@
 apache-airflow-providers-mongo
 airflow-clickhouse-plugin
-python-telegram-bot
 pymongo
+psycopg2-binary
+pandas
+boto3
+python-telegram-bot

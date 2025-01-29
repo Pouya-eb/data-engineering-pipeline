@@ -1,48 +1,68 @@
 from datetime import datetime, timedelta
-
+import time
 from airflow.decorators import dag, task
-from airflow.models.connection import Connection
 from airflow_clickhouse_plugin.hooks.clickhouse import ClickHouseHook
+from telegram_bot import Bot
+from airflow.utils.dates import days_ago
 
+def get_clickhouse_hook():
+    return ClickHouseHook(clickhouse_conn_id="my_clickhouse_database")
+
+def telegram_callback(context):
+    dag = context.get("dag")
+    Bot().send_message(f"Error in DAG: {dag.dag_id}")
 
 default_args = {
-    "owner": "Mkz-Majid",
+    "owner": "Mkztb, ",
+    "on_failure_callback": telegram_callback,
     "depends_on_past": False,
     "start_date": datetime(2025, 1, 1),
     "retries": 1,
     "retry_delay": timedelta(minutes=5),
 }
 
-
 @dag(
     dag_id='videos_bt',
-    description='a dag to transform data and create videos big table',
-    schedule='@once',
+    description='Transform data and create videos big table',
+    schedule='@daily',
     default_args=default_args,
     catchup=False,
-    tags=['clickhouse', 'big_table']        
+    tags=['clickhouse', 'big_table']
 )
 def videos_bt():
     from pprint import pprint
     from clickhouse_driver import Client
-    clickhouse_engine = ClickHouseHook(clickhouse_conn_id='clickhouse_tcp')    
-
 
     @task
     def print_context(**context):
         pprint(context)
+        time.sleep(10)  
 
     @task
     def create_new_ver_channel():
-        client = Client('82.115.20.70', port=9000)
+        hook = get_clickhouse_hook()
+        hook.execute("CREATE DATABASE IF NOT EXISTS bronze;")
+        hook.execute("""
+            CREATE TABLE IF NOT EXISTS bronze.channels
+            (
+                userid String,
+                bio_links String,
+                total_video_visit UInt64,
+                video_count UInt64,
+                start_date DateTime,
+                followers_count UInt64,
+                following_count UInt64,
+                country String,
+                update_count UInt64
+            ) ENGINE = MergeTree()
+            ORDER BY (userid);
+        """)
 
         drop_query = '''
         DROP TABLE IF EXISTS bronze.channels_new;
         '''
+        hook.execute(drop_query)
 
-        client.execute(drop_query)
-
-        # Define the CREATE TABLE query
         create_query = '''
         CREATE TABLE bronze.channels_new
         (
@@ -58,10 +78,8 @@ def videos_bt():
         ) ENGINE = MergeTree()
         ORDER BY (userid);
         '''
+        hook.execute(create_query)
 
-        client.execute(create_query)
-
-        # Define the INSERT query to transfer data into the new table
         insert_query = '''
         INSERT INTO bronze.channels_new
         WITH
@@ -104,22 +122,17 @@ def videos_bt():
         SELECT *
         FROM combined_cte;
         '''
-
-        client.execute(insert_query)
-
-        print("Table 'channels_new' has been created and data transferred.")
+        hook.execute(insert_query)
 
     @task
     def etl():
-        client = Client('82.115.20.70', port=9000)
+        hook = get_clickhouse_hook()
 
         create_db = '''
         CREATE DATABASE IF NOT EXISTS silver;
         '''
+        hook.execute(create_db)
 
-        client.execute(create_db)
-
-        # Define the CREATE TABLE query
         create_query = '''
         CREATE TABLE IF NOT EXISTS silver.Videos_channels_OBT (
             video_id Nullable(Int32),
@@ -146,22 +159,18 @@ def videos_bt():
         ) ENGINE = MergeTree()
         ORDER BY (channel_userid);
         '''
+        hook.execute(create_query)
 
-        client.execute(create_query)
-
-        # Truncate table
         truncate_table_query = '''
         TRUNCATE TABLE silver.Videos_channels_OBT;
         '''
+        hook.execute(truncate_table_query)
 
-        client.execute(truncate_table_query)
-
-        # Define the INSERT query to transfer data into the new table
         insert_query = '''
         INSERT INTO silver.Videos_channels_OBT
             SELECT
             v.id AS video_id,
-            v.owner_username,
+            decodeURLFormComponent(v.owner_username) as owner_username,
             v.title AS video_title,
             v.uid AS video_uid,
             v.visit_count AS video_visit_count,
@@ -171,7 +180,7 @@ def videos_bt():
             v.description AS video_description,
             v.is_deleted AS video_is_deleted,
             v.update_count AS video_update_count,
-            c.userid AS channel_userid,
+            decodeURLFormComponent(c.userid) AS channel_userid,
             c.bio_links AS channel_bio_links,
             c.total_video_visit AS channel_total_video_visit,
             c.video_count AS channel_video_count,
@@ -185,44 +194,9 @@ def videos_bt():
         LEFT JOIN bronze.channels_new AS c
         ON v.owner_username = c.userid;
         '''
+        hook.execute(insert_query)
 
-        client.execute(insert_query)
 
-        create_matmv_query = '''
-        CREATE MATERIALIZED VIEW IF NOT EXISTS silver.MV_Videos_channels_OBT
-        TO silver.Videos_channels_OBT
-        AS
-        SELECT
-            v.id AS video_id,
-            v.owner_username,
-            v.title AS video_title,
-            v.uid AS video_uid,
-            v.visit_count AS video_visit_count,
-            v.owner_name,
-            v.duration AS video_duration,
-            v.posted_date AS video_posted_date,
-            v.description AS video_description,
-            v.is_deleted AS video_is_deleted,
-            v.update_count AS video_update_count,
-            c.userid AS channel_userid,
-            c.bio_links AS channel_bio_links,
-            c.total_video_visit AS channel_total_video_visit,
-            c.video_count AS channel_video_count,
-            c.start_date AS channel_start_date,
-            c.followers_count AS channel_followers_count,
-            c.following_count AS channel_following_count,
-            c.country AS channel_country,
-            c.update_count AS channel_update_count,
-            v.created_at AS created_at
-        FROM bronze.videos AS v
-        LEFT JOIN bronze.channels_new AS c
-        ON v.owner_username = c.userid;
-        '''
-
-        client.execute(create_matmv_query)
-
-    
-    
     print_context() >> create_new_ver_channel() >> etl()
 
 
